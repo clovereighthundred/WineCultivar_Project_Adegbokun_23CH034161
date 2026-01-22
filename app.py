@@ -1,74 +1,47 @@
-# app.py
 import os
-
-import numpy as np
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import numpy as np
 from joblib import load
 
-# --------- USER: path to saved model (change if needed) ----------
-MODEL_PATH = os.path.join("model", "house_price_model.pkl")
-# -----------------------------------------------------------------
+MODEL_PATH = os.path.join("model", "wine_cultivar_model.pkl")
+FEATURES = ["alcohol", "malic_acid", "alcalinity_of_ash", "flavanoids", "color_intensity", "proline"]
 
-FEATURES = [
-    "OverallQual",
-    "GrLivArea",
-    "TotalBsmtSF",
-    "GarageCars",
-    "FullBath",
-    "YearBuilt",
-]
-
-st.set_page_config(page_title="House Price Prediction", layout="centered")
-
-st.title("House Price Prediction")
+st.set_page_config(page_title="Wine Cultivar Predictor", layout="centered")
+st.title("Wine Cultivar Origin Prediction")
 
 if not os.path.exists(MODEL_PATH):
-    st.error(f"Model not found at {MODEL_PATH}. Train model first and put file there.")
+    st.error("Saved model not found. Run the training script first to create model/wine_cultivar_model.pkl")
 else:
     model = load(MODEL_PATH)
 
-    st.header("Enter house features")
-    # Provide sensible default values and ranges (you can adjust)
-    overallqual = st.slider(
-        "Overall Quality (OverallQual)", min_value=1, max_value=10, value=6
-    )
-    gr_liv_area = st.number_input(
-        "Above grade (ground) living area square feet (GrLivArea)",
-        value=1500,
-        min_value=200,
-    )
-    total_bsmt_sf = st.number_input(
-        "Total basement square feet (TotalBsmtSF)", value=800, min_value=0
-    )
-    garage_cars = st.slider(
-        "Garage capacity (GarageCars)", min_value=0, max_value=4, value=1
-    )
-    full_bath = st.slider(
-        "Full bathrooms (FullBath)", min_value=0, max_value=4, value=2
-    )
-    year_built = st.number_input(
-        "Year built (YearBuilt)", value=1980, min_value=1850, max_value=2026
-    )
+    st.subheader("Enter wine chemical properties (selected features)")
 
-    if st.button("Predict House Price"):
-        input_df = pd.DataFrame(
-            [
-                [
-                    overallqual,
-                    gr_liv_area,
-                    total_bsmt_sf,
-                    garage_cars,
-                    full_bath,
-                    year_built,
-                ]
-            ],
-            columns=FEATURES,
-        )
+    # Provide sensible defaults (based on typical wine dataset ranges)
+    alcohol = st.number_input("Alcohol", value=13.0, format="%.3f")
+    malic_acid = st.number_input("Malic acid", value=2.0, format="%.3f")
+    alcalinity_of_ash = st.number_input("Alcalinity of ash", value=17.0, format="%.3f")
+    flavanoids = st.number_input("Flavanoids", value=2.0, format="%.3f")
+    color_intensity = st.number_input("Color intensity", value=5.0, format="%.3f")
+    proline = st.number_input("Proline", value=750.0, format="%.1f")
 
+    input_df = pd.DataFrame([[
+        alcohol, malic_acid, alcalinity_of_ash, flavanoids, color_intensity, proline
+    ]], columns=FEATURES)
+
+    if st.button("Predict cultivar"):
         pred = model.predict(input_df)[0]
-        st.success(f"Predicted Sale Price: ${pred:,.2f}")
+        proba = model.predict_proba(input_df)[0] if hasattr(model, "predict_proba") else None
 
-        # Optional: show model input for transparency
-        with st.expander("Show input data"):
+        # Convert 0/1/2 to Cultivar 1/2/3 for display
+        st.success(f"Predicted cultivar: Cultivar {int(pred) + 1}")
+
+        if proba is not None:
+            st.write("Class probabilities:")
+            proba_df = pd.DataFrame({
+                "Cultivar": [f"Cultivar {i+1}" for i in range(len(proba))],
+                "Probability": proba
+            })
+            st.dataframe(proba_df)
+        with st.expander("Show input features"):
             st.write(input_df)
